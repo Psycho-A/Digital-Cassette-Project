@@ -10,27 +10,27 @@
 #include <windows.h>
 #include <io.h>
 #include <fcntl.h>
-#include "fdkaac_dll.h"  // AAC-СЌРЅРєРѕРґРµСЂ
-#include "faad2_dll.h"   // AAC-РґРµРєРѕРґРµСЂ
+#include "fdkaac_dll.h"  // AAC-энкодер
+#include "faad2_dll.h"   // AAC-декодер
 #endif
 
-/* РЅР°СЃС‚СЂРѕР№РєРё Рё С„СѓРЅРєС†РёРё */
-AppConfig cfg;  // РіР»РѕР±Р°Р»СЊРЅС‹Р№ РєРѕРЅС„РёРі
+/* настройки и функции */
+AppConfig cfg;  // глобальный конфиг
 int tx_run(const char* in_name, const char* out_name);
 int rx_run(const char* in_name, const char* out_name);
 int analog_run(const char *in_name, const char *out_name, int fsm_mode);
 
-/* РІС‹РїРѕР»РЅРµРЅРёРµ РїСЂРѕРіСЂР°РјРјС‹ */
+/* выполнение программы */
 int main(int argc, char** argv)
 {
     int res = 1; char log_fn[256];
     char *exe_fn = strstr(argv[0],"\\") ? strrchr(argv[0],'\\') +1 : argv[0];
 
-    /* С‚РІРёРєРё РґР»СЏ Win32 */
+    /* твики для Win32 */
     #ifdef _WIN32
-        // Р·Р°РіРѕР»РѕРІРѕРє РїСЂРѕРіСЂР°РјРјС‹ РІ РєРѕРЅСЃРѕР»Рё...
+        // заголовок программы в консоли...
         SetConsoleTitle("Digital Cassette Project");
-        // РІРєР»СЋС‡РёС‚СЊ Р±РёРЅР°СЂРЅС‹Р№ СЂРµР¶РёРј РґР»СЏ pipe
+        // включить бинарный режим для pipe
         _setmode(_fileno(stdin),  _O_BINARY);
         _setmode(_fileno(stdout), _O_BINARY);
     #endif
@@ -54,28 +54,28 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n"); system("pause"); return 1;
     }
 
-    /* С‡РёС‚Р°РµРј РЅР°СЃС‚СЂРѕР№РєРё */
+    /* читаем настройки */
     read_config(&cfg, "config.ini", argc, argv);
 
-    /* РІРєР»СЋС‡РµРЅРёРµ РёР»Рё РІС‹РєР»СЋС‡РµРЅРёРµ Р»РѕРіРёСЂРѕРІР°РЅРёСЏ */
+    /* включение или выключение логирования */
     sprintf(log_fn, "%s.log", argv[0]);  // "program.exe.log"
     log_fp = g_logging ? fopen(log_fn, "wb") : fopen("NUL", "wb");
 
-    /* Р·Р°РіСЂСѓР¶Р°РµРј DLL РґР»СЏ РєРѕРґРµСЂР° Рё РґРµРєРѕРґРµСЂР° */
+    /* загружаем DLL для кодера и декодера */
     if (load_fdkaac_dll() != 0) fprintf(stderr, "Warning: libFdkAac.dll not loaded, AAC encoding disabled.\n\n");
     if (load_faad2_dll() != 0)  fprintf(stderr, "Warning: libFaad2.dll not loaded, AAC decoding disabled.\n\n");
 
-    /* Р·Р°РїСѓСЃРєР°РµРј РІС‹Р±СЂР°РЅРЅС‹Р№ СЂРµР¶РёРј */
+    /* запускаем выбранный режим */
     if (strcmp(argv[1], "tx") == 0)             res = tx_run(argv[2], argv[3]);
     else if (strcmp(argv[1], "rx") == 0)        res = rx_run(argv[2], argv[3]);
     else if (strcmp(argv[1], "tx_analog") == 0) res = analog_run(argv[2], argv[3], 0);
     else if (strcmp(argv[1], "rx_analog") == 0) res = analog_run(argv[2], argv[3], 1);
     else fprintf(stderr, "Unknown mode!\n");
 
-    /* РІС‹РіСЂСѓР¶Р°РµРј DLL РєРѕРґРµСЂР° Рё РґРµРєРѕРґРµСЂР° */
+    /* выгружаем DLL кодера и декодера */
     if (free_fdkaac_dll() != 0) fprintf(stderr, "Warning: libFdkAac.dll not unloaded, probably memory issue!\n");
     if (free_faad2_dll() != 0)  fprintf(stderr, "Warning: libFaad2.dll not unloaded, probably memory issue!\n");
-    if (g_logging && log_fp) fclose(log_fp);  // Р·Р°РєСЂС‹С‚СЊ Р»РѕРі-С„Р°Р№Р»
+    if (g_logging && log_fp) fclose(log_fp);  // закрыть лог-файл
 
     return res;
 }
